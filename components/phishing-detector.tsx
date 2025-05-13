@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Shield, AlertTriangle, CheckCircle, Loader2, ExternalLink } from "lucide-react"
+import { Shield, AlertTriangle, CheckCircle, Loader2, ExternalLink, AlertCircle } from "lucide-react"
 import { BinaryVisualization } from "./binary-visualization"
 import { FeatureList } from "./feature-list"
 import { Label } from "@/components/ui/label"
@@ -18,16 +18,44 @@ type AnalysisResult = {
   binaryFeatures: number[][]
 }
 
+// List of known phishing URLs to highlight in the UI
+const KNOWN_PHISHING_URLS = [
+  "nexiexterirpremiunmbn.com",
+  "talentedge.com.my/arawkaan.php",
+  "rebrand.ly/054346",
+  "shopee-brasil.com",
+  "vendernashopee.com.br",
+  "cambridge-exc.com",
+  "gt-banrural.firebaseapp.com",
+  "burj-azizi.richproperty.ae",
+]
+
+// Function to check if a URL is in our known phishing list
+function isKnownPhishingURL(url: string): boolean {
+  // Normalize the URL by removing protocol and www prefix
+  const normalizedUrl = url
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .toLowerCase()
+
+  // Check if any of the known phishing domains are in the URL
+  return KNOWN_PHISHING_URLS.some((phishingUrl) => normalizedUrl.includes(phishingUrl))
+}
+
 export function PhishingDetector() {
   const [url, setUrl] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isKnownPhishing, setIsKnownPhishing] = useState(false)
 
   const analyzeUrl = async () => {
     if (!url) return
 
     setLoading(true)
     setResult(null)
+
+    // Check if this is a known phishing URL
+    setIsKnownPhishing(isKnownPhishingURL(url))
 
     try {
       const response = await fetch("/api/analyze-url", {
@@ -49,6 +77,7 @@ export function PhishingDetector() {
       console.error("Error analyzing URL:", error)
       setResult(null)
       setLoading(false)
+      setIsKnownPhishing(false)
     }
   }
 
@@ -212,6 +241,17 @@ export function PhishingDetector() {
                     <div className="bg-slate-900 rounded-lg border border-slate-700">
                       <FeatureList features={result.features} />
                     </div>
+
+                    {isKnownPhishing && (
+                      <Alert className="bg-red-900/50 border-red-800 mt-4">
+                        <AlertCircle className="h-5 w-5 text-red-400" />
+                        <AlertTitle className="text-white">Known Phishing URL Detected</AlertTitle>
+                        <AlertDescription className="text-slate-200">
+                          This URL has been identified in our database of known phishing sites. Do not enter any
+                          personal information or credentials on this site.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -244,7 +284,9 @@ export function PhishingDetector() {
                   </AlertTitle>
                   <AlertDescription className="text-slate-200">
                     {result.isPhishing
-                      ? `This appears to be a phishing attempt with ${result.confidence}% confidence.`
+                      ? isKnownPhishing
+                        ? `This is a confirmed phishing site with ${result.confidence}% confidence. Do not proceed.`
+                        : `This appears to be a phishing attempt with ${result.confidence}% confidence.`
                       : `This appears to be legitimate with ${result.confidence}% confidence.`}
                   </AlertDescription>
                 </Alert>
