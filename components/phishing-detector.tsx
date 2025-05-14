@@ -20,6 +20,7 @@ type AnalysisResult = {
 
 // List of known phishing URLs to highlight in the UI
 const KNOWN_PHISHING_URLS = [
+  // Original list
   "nexiexterirpremiunmbn.com",
   "talentedge.com.my/arawkaan.php",
   "rebrand.ly/054346",
@@ -28,6 +29,26 @@ const KNOWN_PHISHING_URLS = [
   "cambridge-exc.com",
   "gt-banrural.firebaseapp.com",
   "burj-azizi.richproperty.ae",
+
+  // New additions
+  "small-lock-deep.on-fleek.app",
+  "star-substantial-entree.glitch.me",
+  "overview-docs---trezor-hard.webflow.io",
+  "trezoorhardware--sso.webflow.io",
+  "chroniclesby.shop",
+  "relais-livraison2025.com",
+]
+
+// List of known legitimate URLs
+const KNOWN_LEGITIMATE_URLS = [
+  "bb.tees.ac.uk",
+  "tiktok.com",
+  "youtube.com",
+  "outlook.office.com",
+  "mail.google.com",
+  "google.com",
+  "snapchat.com",
+  "github.com",
 ]
 
 // Function to check if a URL is in our known phishing list
@@ -37,9 +58,24 @@ function isKnownPhishingURL(url: string): boolean {
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
     .toLowerCase()
+    .split("#")[0] // Remove hash fragments
 
   // Check if any of the known phishing domains are in the URL
   return KNOWN_PHISHING_URLS.some((phishingUrl) => normalizedUrl.includes(phishingUrl))
+}
+
+// Function to check if a URL is in our known legitimate list
+function isKnownLegitimateURL(url: string): boolean {
+  // Normalize the URL by removing protocol and www prefix
+  const normalizedUrl = url
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .toLowerCase()
+    .split("#")[0] // Remove hash fragments
+    .split("?")[0] // Remove query parameters
+
+  // Check if any of the known legitimate domains are in the URL
+  return KNOWN_LEGITIMATE_URLS.some((legitimateUrl) => normalizedUrl.includes(legitimateUrl))
 }
 
 export function PhishingDetector() {
@@ -47,6 +83,7 @@ export function PhishingDetector() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [isKnownPhishing, setIsKnownPhishing] = useState(false)
+  const [isKnownLegitimate, setIsKnownLegitimate] = useState(false)
 
   const analyzeUrl = async () => {
     if (!url) return
@@ -54,8 +91,9 @@ export function PhishingDetector() {
     setLoading(true)
     setResult(null)
 
-    // Check if this is a known phishing URL
+    // Check if this is a known URL
     setIsKnownPhishing(isKnownPhishingURL(url))
+    setIsKnownLegitimate(isKnownLegitimateURL(url))
 
     try {
       const response = await fetch("/api/analyze-url", {
@@ -78,6 +116,7 @@ export function PhishingDetector() {
       setResult(null)
       setLoading(false)
       setIsKnownPhishing(false)
+      setIsKnownLegitimate(false)
     }
   }
 
@@ -252,6 +291,16 @@ export function PhishingDetector() {
                         </AlertDescription>
                       </Alert>
                     )}
+
+                    {isKnownLegitimate && (
+                      <Alert className="bg-green-900/50 border-green-800 mt-4">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <AlertTitle className="text-white">Verified Legitimate URL</AlertTitle>
+                        <AlertDescription className="text-slate-200">
+                          This URL has been verified as a legitimate website. It is safe to proceed.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -287,7 +336,9 @@ export function PhishingDetector() {
                       ? isKnownPhishing
                         ? `This is a confirmed phishing site with ${result.confidence}% confidence. Do not proceed.`
                         : `This appears to be a phishing attempt with ${result.confidence}% confidence.`
-                      : `This appears to be legitimate with ${result.confidence}% confidence.`}
+                      : isKnownLegitimate
+                        ? `This is a verified legitimate site with ${result.confidence}% confidence. Safe to proceed.`
+                        : `This appears to be legitimate with ${result.confidence}% confidence.`}
                   </AlertDescription>
                 </Alert>
               </CardFooter>
